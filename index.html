@@ -1,0 +1,1624 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Painel de Pedidos de Material Didático</title>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script>
+  // Mesmo projeto Firebase usado na Ferramenta De/Para (coleções diferentes, mesmo banco)
+  const firebaseConfig = {
+    apiKey: "AIzaSyDhOZ-SHwT8FZrN-6HYOGx8wLpx8VhGu68",
+    authDomain: "ferramentadepara.firebaseapp.com",
+    projectId: "ferramentadepara",
+    storageBucket: "ferramentadepara.firebasestorage.app",
+    messagingSenderId: "909744800708",
+    appId: "1:909744800708:web:25c390afef260a5cf49a91"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const db = firebase.firestore();
+</script>
+<style>
+  :root{
+    --bg: #12151a;
+    --surface: #1a1e25;
+    --surface-2: #212630;
+    --border: #2c3240;
+    --border-soft: #232833;
+    --text: #e9ebf0;
+    --text-dim: #9199a8;
+    --text-faint: #5c6474;
+    --amber: #e2a53c;
+    --amber-bg: rgba(226,165,60,0.12);
+    --red: #e2645c;
+    --red-bg: rgba(226,100,92,0.12);
+    --green: #4fb789;
+    --green-bg: rgba(79,183,137,0.12);
+    --blue: #6c93e8;
+    --blue-bg: rgba(108,147,232,0.12);
+    --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Arial, sans-serif;
+    --font-mono: "SF Mono", "IBM Plex Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:var(--font-ui);}
+  body{padding:32px 40px 80px;min-height:100vh;}
+  .wrap{max-width:1280px;margin:0 auto;}
+
+  /* ---- header / signature Friday runway ---- */
+  header{margin-bottom:28px;}
+  .eyebrow{font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--amber);margin:0 0 8px;}
+  h1{font-size:26px;font-weight:650;letter-spacing:-0.01em;margin:0 0 4px;}
+  .sub{color:var(--text-dim);font-size:14px;margin:0 0 20px;}
+
+  .runway{
+    display:flex;align-items:stretch;gap:2px;background:var(--surface-2);
+    border:1px solid var(--border);border-radius:10px;overflow:hidden;padding:2px;
+  }
+  .runway .cell{
+    flex:1;padding:10px 12px;background:var(--surface);border-radius:8px;text-align:center;position:relative;
+  }
+  .runway .cell.today{background:var(--amber-bg);outline:1px solid var(--amber);}
+  .runway .cell .d{font-family:var(--font-mono);font-size:11px;color:var(--text-faint);}
+  .runway .cell.today .d{color:var(--amber);}
+  .runway .cell .lbl{font-size:11px;color:var(--text-dim);margin-top:2px;}
+  .runway .cell.today .lbl{color:var(--text);font-weight:600;}
+
+  /* ---- upload grid ---- */
+  .section-title{font-size:13px;font-weight:650;text-transform:uppercase;letter-spacing:.06em;color:var(--text-dim);margin:36px 0 14px;display:flex;align-items:center;gap:10px;}
+  .section-title::after{content:"";flex:1;height:1px;background:var(--border-soft);}
+
+  .upload-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;}
+  .card{
+    background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;
+    display:flex;flex-direction:column;gap:8px;position:relative;transition:border-color .15s ease;
+  }
+  .card.ready{border-color:var(--green);}
+  .card .icon{font-size:18px;}
+  .card .name{font-weight:600;font-size:14px;}
+  .card .req{font-size:10px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.05em;}
+  .card .status{font-size:12px;color:var(--text-dim);font-family:var(--font-mono);min-height:32px;line-height:1.4;}
+  .card.ready .status{color:var(--green);}
+  .card input[type=file]{display:none;}
+  .card .btn{
+    margin-top:auto;font-size:12px;padding:7px 10px;border-radius:7px;border:1px solid var(--border);
+    background:var(--surface-2);color:var(--text);cursor:pointer;text-align:center;font-family:var(--font-ui);
+  }
+  .card .btn:hover{border-color:var(--blue);color:var(--blue);}
+  .card .remove-btn{margin-top:6px;background:none;border:1px solid var(--border-soft);color:var(--text-faint);}
+  .card .remove-btn:hover{border-color:var(--red);color:var(--red);background:var(--red-bg);}
+  .card .cached-tag{font-size:10px;background:var(--blue-bg);color:var(--blue);padding:2px 7px;border-radius:5px;display:inline-block;width:fit-content;}
+
+  .process-row{display:flex;align-items:center;gap:14px;margin-top:28px;}
+  #processBtn{
+    background:var(--amber);color:#1a1206;border:none;font-weight:650;font-size:14px;
+    padding:13px 26px;border-radius:9px;cursor:pointer;font-family:var(--font-ui);
+  }
+  #processBtn:disabled{background:var(--surface-2);color:var(--text-faint);cursor:not-allowed;}
+  #processBtn:not(:disabled):hover{filter:brightness(1.08);}
+  .process-hint{font-size:12px;color:var(--text-faint);}
+
+  /* ---- results ---- */
+  #results{display:none;margin-top:44px;}
+  .summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:32px;}
+  .stat{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;}
+  .stat .n{font-family:var(--font-mono);font-size:30px;font-weight:600;line-height:1;}
+  .stat .l{font-size:12px;color:var(--text-dim);margin-top:6px;}
+  .stat.amber .n{color:var(--amber);}
+  .stat.red .n{color:var(--red);}
+  .stat.blue .n{color:var(--blue);}
+
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  thead th{
+    text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-faint);
+    padding:10px 12px;border-bottom:1px solid var(--border);font-weight:600;white-space:nowrap;
+  }
+  tbody td{padding:10px 12px;border-bottom:1px solid var(--border-soft);font-family:var(--font-mono);white-space:nowrap;}
+  tbody td.txt{font-family:var(--font-ui);white-space:normal;}
+  tbody tr:hover{background:var(--surface);}
+  .table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px;background:var(--surface);}
+  .diff{padding:2px 7px;border-radius:5px;font-size:12px;}
+  .diff.ok{background:var(--green-bg);color:var(--green);}
+  .diff.warn{background:var(--amber-bg);color:var(--amber);}
+  .diff.alert{background:var(--red-bg);color:var(--red);}
+  .diff.na{color:var(--text-faint);background:none;}
+
+  .empty-msg{padding:26px;text-align:center;color:var(--text-faint);font-size:13px;}
+
+  details{margin-top:14px;border:1px solid var(--border);border-radius:10px;background:var(--surface);}
+  summary{padding:14px 16px;cursor:pointer;font-size:13px;color:var(--text-dim);font-weight:600;}
+  summary:hover{color:var(--text);}
+  .warn-block{padding:16px 20px;background:var(--surface);border:1px solid var(--border);border-radius:12px;}
+  .warn-block p{font-size:12px;color:var(--text-faint);margin:0 0 10px;}
+  .warn-list{font-family:var(--font-mono);font-size:12px;color:var(--text-dim);max-height:220px;overflow-y:auto;}
+  .warn-list div{padding:4px 0;border-bottom:1px dashed var(--border-soft);}
+
+  .export-row{margin-top:24px;display:flex;gap:10px;}
+  .export-btn{
+    background:var(--surface-2);border:1px solid var(--border);color:var(--text);font-family:var(--font-ui);
+    font-size:13px;font-weight:600;padding:10px 18px;border-radius:8px;cursor:pointer;
+  }
+  .export-btn:hover{border-color:var(--green);color:var(--green);}
+
+  .badge-status{font-size:10px;padding:3px 8px;border-radius:5px;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:.03em;}
+  .badge-hoje{background:var(--amber-bg);color:var(--amber);}
+  .badge-atrasado{background:var(--red-bg);color:var(--red);}
+
+  ::-webkit-scrollbar{height:8px;width:8px;}
+
+  /* ---- Login ---- */
+  #loginOverlay{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:100;}
+  #loginBox{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:34px 30px;width:100%;max-width:380px;}
+  #loginBox h2{margin:0 0 6px;font-size:19px;color:var(--text);}
+  #loginBox p.sub{margin:0 0 20px;font-size:13px;color:var(--text-dim);}
+  #loginBox label{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-faint);display:block;margin-top:14px;}
+  #loginBox label:first-of-type{margin-top:0;}
+  #loginBox input{width:100%;background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:10px 12px;font-size:14px;margin-top:5px;font-family:var(--font-ui);}
+  #loginBox input:focus{outline:none;border-color:var(--blue);}
+  #loginError{font-size:13px;margin-top:12px;min-height:18px;color:var(--red);}
+  #loginBox button.primary{width:100%;margin-top:20px;padding:11px;font-size:14px;background:var(--amber);color:#1a1206;border:none;border-radius:9px;font-weight:650;cursor:pointer;font-family:var(--font-ui);}
+  #appWrap{display:none;}
+  #userBadge{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text-dim);margin-bottom:16px;}
+  #userBadge .name{font-weight:650;color:var(--text);}
+  #userBadge button{background:var(--surface-2);border:1px solid var(--border);color:var(--text);padding:5px 11px;border-radius:7px;cursor:pointer;font-size:12px;font-family:var(--font-ui);}
+  #userBadge button:hover{border-color:var(--red);color:var(--red);}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
+
+  /* ---- correções de nomenclatura ---- */
+  .fix-panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;}
+  .fix-panel p.help{font-size:12px;color:var(--text-faint);margin:0 0 14px;}
+  .fix-table{width:100%;border-collapse:collapse;margin-bottom:16px;}
+  .fix-table th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-faint);padding:8px 10px;border-bottom:1px solid var(--border);}
+  .fix-table td{padding:8px 10px;border-bottom:1px solid var(--border-soft);font-size:13px;}
+  .fix-table td.mono{font-family:var(--font-mono);}
+  .fix-empty{color:var(--text-faint);font-size:12px;padding:10px 0;}
+  .fix-rm{background:none;border:none;color:var(--text-faint);cursor:pointer;font-size:15px;line-height:1;padding:2px 6px;border-radius:5px;}
+  .fix-rm:hover{color:var(--red);background:var(--red-bg);}
+  .fix-tag{font-size:10px;text-transform:uppercase;letter-spacing:.04em;padding:2px 7px;border-radius:5px;background:var(--blue-bg);color:var(--blue);}
+  .fix-form{display:flex;gap:8px;align-items:end;flex-wrap:wrap;padding-top:12px;border-top:1px dashed var(--border-soft);}
+  .fix-form .fld{display:flex;flex-direction:column;gap:5px;}
+  .fix-form label{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-faint);}
+  .fix-form select, .fix-form input{
+    background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:7px;
+    padding:8px 10px;font-size:13px;font-family:var(--font-ui);min-width:160px;
+  }
+  .fix-form input:focus, .fix-form select:focus{outline:none;border-color:var(--blue);}
+  .fix-form .add-btn{
+    background:var(--green-bg);border:1px solid var(--green);color:var(--green);font-weight:600;
+    padding:8px 16px;border-radius:7px;cursor:pointer;font-size:13px;font-family:var(--font-ui);
+  }
+  .fix-form .add-btn:hover{filter:brightness(1.15);}
+  .fix-tag.exc{background:var(--green-bg);color:var(--green);}
+</style>
+</head>
+<body>
+
+<div id="loginOverlay">
+  <div id="loginBox">
+    <h2>Painel de Pedidos de Material Didático</h2>
+    <p class="sub" id="loginSub">Entre com seu e-mail e senha para acessar.</p>
+    <label>E-mail</label>
+    <input type="email" id="loginEmail" autocomplete="username" placeholder="seu@email.com">
+    <label>Senha</label>
+    <input type="password" id="loginSenha" autocomplete="current-password" placeholder="Senha">
+    <div id="loginError"></div>
+    <button class="primary" id="loginBtn" onclick="tentarLogin()">Entrar</button>
+    <p style="text-align:center;margin-top:14px;font-size:12px;">
+      <a href="#" id="loginToggleLink" onclick="alternarModoLogin();return false;" style="color:var(--blue);">Primeiro acesso? Criar senha</a>
+      &nbsp;·&nbsp;
+      <a href="#" onclick="esqueciSenha();return false;" style="color:var(--blue);">Esqueci minha senha</a>
+    </p>
+  </div>
+</div>
+
+<div id="appWrap">
+<div class="wrap">
+  <header>
+    <div id="userBadge"></div>
+    <p class="eyebrow">Pedidos &middot; Material Didático</p>
+    <h1>Painel de Pedidos de Material Didático</h1>
+    <p class="sub">Cruza matrículas, adoção, calendário, pedidos feitos e orçamento — toda sexta-feira.</p>
+      </header>
+
+  <div id="storageBanner" style="display:none;background:var(--red-bg);border:1px solid var(--red);color:var(--red);border-radius:10px;padding:12px 16px;font-size:13px;margin-bottom:20px;">
+    ⚠️ Este arquivo parece estar aberto fora do Claude (ex: direto do computador) — o salvamento automático de correções, exceções e bases não funciona nesse modo. Use <strong>Exportar configurações</strong> abaixo antes de fechar, e <strong>Importar configurações</strong> na próxima vez que abrir.
+  </div>
+
+  <div style="display:flex;gap:10px;margin-bottom:8px;">
+    <button class="export-btn" id="exportConfigBtn">Exportar configurações (.json)</button>
+    <label class="export-btn" for="importConfigInput" style="cursor:pointer;">Importar configurações (.json)</label>
+    <input type="file" id="importConfigInput" accept=".json" style="display:none;" />
+    <button class="export-btn" id="clearConfigBtn" style="border-color:var(--red);color:var(--red);">Limpar correções e exceções</button>
+  </div>
+  <p style="font-size:12px;color:var(--text-faint);margin:0 0 24px;">Guarda tudo que está nas seções de Correções e Exceções abaixo (não inclui os arquivos de dados). Use pra levar suas configurações entre computadores ou como backup de segurança.</p>
+
+  <div class="section-title">Correções de nomenclatura</div>
+  <div class="fix-panel">
+    <p class="help">Diferenças de nome entre bases (ex: marca ou unidade escrita diferente no Painel) são corrigidas aqui antes do cruzamento. Marca + Unidade são obrigatórias; Turma e Turno são opcionais — use quando a mesma Marca+Unidade do Painel precisa virar unidades diferentes na Lista de adoção dependendo da turma (ex: "pH Tijuca" dividido em duas unidades). Fica salvo — você só adiciona uma vez.</p>
+    <table class="fix-table" id="fixTable"></table>
+    <div class="fix-form">
+      <div class="fld">
+        <label>Marca no painel (errado)</label>
+        <select id="fixMarcaDe"><option value="">Carregue o Painel...</option></select>
+      </div>
+      <div class="fld">
+        <label>Unidade no painel (errado)</label>
+        <select id="fixUnidadeDe" disabled><option value="">Selecione a marca primeiro</option></select>
+      </div>
+      <div class="fld">
+        <label>Turma (opcional)</label>
+        <select id="fixTurmaDe" disabled><option value="">Qualquer turma</option></select>
+      </div>
+      <div class="fld">
+        <label>Turno (opcional)</label>
+        <select id="fixTurnoDe" disabled><option value="">Qualquer turno</option></select>
+      </div>
+      <div class="fld" style="align-self:center;padding-top:14px;color:var(--text-faint)">→</div>
+      <div class="fld">
+        <label>Marca correta (lista de adoção)</label>
+        <select id="fixMarcaPara"><option value="">Carregue a Lista de adoção...</option></select>
+      </div>
+      <div class="fld">
+        <label>Unidade correta (lista de adoção)</label>
+        <select id="fixUnidadePara" disabled><option value="">Selecione a marca primeiro</option></select>
+      </div>
+      <div class="fld">
+        <label>Turma (opcional)</label>
+        <select id="fixTurmaPara" disabled><option value="">Não alterar</option></select>
+      </div>
+      <div class="fld">
+        <label>Turno (opcional)</label>
+        <select id="fixTurnoPara" disabled><option value="">Não alterar</option></select>
+      </div>
+      <button class="add-btn" id="fixAddBtn">Adicionar correção</button>
+    </div>
+  </div>
+
+  <div class="section-title">Exceções conhecidas (não são erro)</div>
+  <div class="fix-panel">
+    <p class="help">Turmas ou escolas que sabidamente não usam material didático — não precisam aparecer como aviso. Deixe Marca/Unidade/Turma em branco para "qualquer". Turma casa por trecho do nome (ex: "Infantil 1" pega qualquer turma que contenha esse texto).</p>
+
+    <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-dim);padding:10px 0;border-bottom:1px dashed var(--border-soft);margin-bottom:14px;cursor:pointer;">
+      <input type="checkbox" id="excZeroAlunos" style="width:16px;height:16px;accent-color:var(--green);" />
+      Ignorar automaticamente turmas com <strong style="color:var(--text)">Real Adesão (#) = 0</strong> no Painel de matrículas (sem aluno, sem pedido a fazer)
+    </label>
+
+    <table class="fix-table" id="excTable"></table>
+    <div class="fix-form">
+      <div class="fld">
+        <label>Marca (opcional)</label>
+        <input id="excMarca" type="text" placeholder="ex: Santi" />
+      </div>
+      <div class="fld">
+        <label>Unidade (opcional)</label>
+        <input id="excUnidade" type="text" placeholder="ex: Paraíso" />
+      </div>
+      <div class="fld">
+        <label>Turma contém (opcional)</label>
+        <input id="excTurma" type="text" placeholder="ex: Infantil 1" />
+      </div>
+      <div class="fld">
+        <label>Motivo (opcional)</label>
+        <input id="excMotivo" type="text" placeholder="ex: não usa material" />
+      </div>
+      <button class="add-btn" id="excAddBtn">Adicionar exceção</button>
+    </div>
+  </div>
+
+  <div class="section-title">Bases de dados</div>
+  <div class="upload-grid" id="uploadGrid"></div>
+
+  <div class="process-row">
+    <button id="processBtn" disabled>Processar pedidos</button>
+    <span class="process-hint" id="processHint">Carregue Painel de matrículas, Lista de adoção, Calendário de pedidos, Pedidos feitos, Orçamento e Alunos contratantes para continuar.</span>
+  </div>
+
+  <div id="results">
+    <div class="section-title">Avisos e divergências para revisão</div>
+    <div class="warn-block" id="warnBlock"></div>
+
+    <div class="export-row">
+      <button class="export-btn" id="exportBtn">Baixar relatório (.xlsx)</button>
+      <button class="export-btn" id="exportAvisosBtn">Baixar avisos (.xlsx)</button>
+      <button class="export-btn" id="exportMemoriaBtn">Baixar memória de cálculo (.xlsx)</button>
+    </div>
+  </div>
+</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+(function(){
+
+const SLOTS = [
+  {key:'painel', label:'Painel de matrículas', icon:'📋', required:true, cache:true,
+   need:['Marca','Unidade','Série','Turno','Real Adesão (#)']},
+  {key:'adocao', label:'Lista de adoção', icon:'📚', required:true, cache:true,
+   need:['Marca','Unidade','Turma','Turno','Selo','Coleção','Utilização','Id Escola']},
+  {key:'calendario', label:'Calendário de pedidos', icon:'📅', required:true, cache:true,
+   need:['ID Escola','Coleção','Volume Coleção','Data do pedido']},
+  {key:'pedidos', label:'Pedidos feitos', icon:'✅', required:true, cache:true,
+   need:['ID Escola','COLEÇÃO','VOLUME','QUANTIDADE','Considera para quantidade enviada?']},
+  {key:'orcamento', label:'Orçamento', icon:'💰', required:true, cache:true,
+   need:['Marca','Unidade','Turma','Turno','Coleção','Volume Coleção','Qtd Orç']},
+  {key:'bonificados', label:'Alunos contratantes (fora do painel)', icon:'🎓', required:true, cache:true,
+   need:['Marca','Unidade','Turma','Turno','Qtd de alunos','Aparece na adesão do painel?']},
+];
+
+const state = {}; // key -> array of row objects (raw, already trimmed to needed columns when useful)
+const meta = {};  // key -> {filename, rows, cached}
+let correcoes = [
+  {marcaDe:'Coleguium Contratos', unidadeDe:'Carajás', marcaPara:'Coleguium', unidadePara:'Carajás'},
+  {marcaDe:'Coleguium Contratos', unidadeDe:'Conceição do Mato Dentro', marcaPara:'Coleguium', unidadePara:'Conceição do Mato Dentro'},
+  {marcaDe:'pH', unidadeDe:'Botafogo 1', marcaPara:'pH', unidadePara:'Botafogo'},
+  {marcaDe:'pH', unidadeDe:'Botafogo 2', marcaPara:'pH', unidadePara:'Botafogo'}
+];
+let excecoes = [
+  {marca:'', unidade:'', turma:'Infantil 1', motivo:'não usa material didático'},
+  {marca:'', unidade:'', turma:'English Every Day', motivo:'turma de projeto, fora da lista de adoção'},
+  {marca:'Santi', unidade:'Paraíso', turma:'', motivo:'não usa material didático'}
+];
+let excecaoZeroAlunos = true;
+
+const KEY_PREFIX = ''; // isola o armazenamento desta versão do arquivo das demais versões (ex: 'blank_' na versão em branco)
+let storageMode = null; // 'claude' | 'local' | null
+
+async function storageGet(key, shared){
+  try{
+    const r = await window.storage.get(key, shared);
+    if(r){ storageMode = 'claude'; return r; }
+  }catch(e){ /* window.storage indisponível (fora do Claude) */ }
+  try{
+    const v = localStorage.getItem(KEY_PREFIX+'md_local_'+key);
+    if(v!==null){ storageMode = storageMode || 'local'; return {key, value:v, shared}; }
+  }catch(e){ /* localStorage bloqueado (ex: modo privado) */ }
+  return null;
+}
+async function storageSet(key, value, shared){
+  let ok = false;
+  try{
+    const r = await window.storage.set(key, value, shared);
+    if(r){ ok = true; storageMode = 'claude'; }
+  }catch(e){ /* segue para o fallback */ }
+  try{
+    localStorage.setItem(KEY_PREFIX+'md_local_'+key, value);
+    ok = true;
+    if(storageMode!=='claude') storageMode = 'local';
+  }catch(e){ /* nada a fazer */ }
+  return ok ? {key,value,shared} : null;
+}
+async function storageDelete(key, shared){
+  try{ await window.storage.delete(key, shared); }catch(e){}
+  try{ localStorage.removeItem(KEY_PREFIX+'md_local_'+key); }catch(e){}
+}
+
+/* ======================= LOGIN (Firebase) ======================= */
+// Para autorizar alguém da equipe, adicione um documento na coleção "equipe_pedidos"
+// do Firestore com o e-mail da pessoa como ID do documento (veja instruções no chat).
+let currentUser = null;
+let modoCriarConta = false;
+
+function alternarModoLogin() {
+  modoCriarConta = !modoCriarConta;
+  document.getElementById('loginSub').innerText = modoCriarConta
+    ? 'Primeiro acesso: crie uma senha para o e-mail autorizado pelo administrador.'
+    : 'Entre com seu e-mail e senha para acessar.';
+  document.getElementById('loginBtn').innerText = modoCriarConta ? 'Criar senha e entrar' : 'Entrar';
+  document.getElementById('loginBtn').onclick = modoCriarConta ? criarConta : tentarLogin;
+  document.getElementById('loginToggleLink').innerText = modoCriarConta ? 'Já tenho senha? Entrar' : 'Primeiro acesso? Criar senha';
+  document.getElementById('loginError').innerText = '';
+}
+
+async function buscarAutorizacao(email) {
+  const doc = await db.collection('equipe_pedidos').doc(norm(email)).get();
+  return doc.exists ? doc.data() : null;
+}
+
+async function tentarLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const senha = document.getElementById('loginSenha').value;
+  const erroEl = document.getElementById('loginError');
+  erroEl.style.color = ''; erroEl.innerText = '';
+  if (!email || !senha) { erroEl.innerText = 'Preencha e-mail e senha.'; return; }
+  try { await auth.signInWithEmailAndPassword(email, senha); }
+  catch (e) { erroEl.innerText = 'E-mail ou senha incorretos.'; return; }
+}
+
+async function criarConta() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const senha = document.getElementById('loginSenha').value;
+  const erroEl = document.getElementById('loginError');
+  erroEl.style.color = ''; erroEl.innerText = '';
+  if (!email || !senha) { erroEl.innerText = 'Preencha e-mail e senha.'; return; }
+  if (senha.length < 6) { erroEl.innerText = 'A senha precisa ter pelo menos 6 caracteres.'; return; }
+  let credencial;
+  try { credencial = await auth.createUserWithEmailAndPassword(email, senha); }
+  catch (e) {
+    if (e.code === 'auth/email-already-in-use') erroEl.innerText = 'Já existe uma senha para este e-mail. Use "Entrar".';
+    else erroEl.innerText = 'Não foi possível criar a senha: ' + e.message;
+    return;
+  }
+  let autorizacao;
+  try { autorizacao = await buscarAutorizacao(email); }
+  catch (e) {
+    erroEl.innerText = 'Erro ao verificar autorização: ' + e.message;
+    await credencial.user.delete().catch(() => {});
+    await auth.signOut();
+    return;
+  }
+  if (!autorizacao) {
+    erroEl.innerText = 'Este e-mail ainda não foi autorizado pelo administrador.';
+    await credencial.user.delete().catch(() => {});
+    await auth.signOut();
+    return;
+  }
+}
+
+async function esqueciSenha() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const erroEl = document.getElementById('loginError');
+  erroEl.style.color = ''; erroEl.innerText = '';
+  if (!email) { erroEl.innerText = 'Digite seu e-mail no campo acima e clique de novo.'; return; }
+  try {
+    await auth.sendPasswordResetEmail(email);
+    erroEl.style.color = 'var(--green)';
+    erroEl.innerText = 'Link de redefinição enviado para ' + email + '. Verifique também o spam.';
+  } catch (e) {
+    if (e.code === 'auth/user-not-found') erroEl.innerText = 'Não existe conta com esse e-mail ainda. Use "Primeiro acesso".';
+    else erroEl.innerText = 'Não foi possível enviar o e-mail: ' + e.message;
+  }
+}
+
+function logout() {
+  if (unsubscribeCompartilhado) unsubscribeCompartilhado();
+  currentUser = null;
+  auth.signOut();
+  location.reload();
+}
+
+async function processarLoginAutenticado(email) {
+  let autorizacao;
+  try { autorizacao = await buscarAutorizacao(email); }
+  catch (e) {
+    document.getElementById('loginError').innerText = 'Erro ao verificar autorização: ' + e.message;
+    await auth.signOut();
+    return;
+  }
+  if (!autorizacao) {
+    document.getElementById('loginError').innerText = 'Seu e-mail não está autorizado. Peça para o administrador te adicionar na coleção equipe_pedidos.';
+    await auth.signOut();
+    return;
+  }
+  currentUser = { email: norm(email) };
+  mostrarApp();
+}
+
+function mostrarApp() {
+  document.getElementById('loginOverlay').style.display = 'none';
+  document.getElementById('appWrap').style.display = 'block';
+  document.getElementById('userBadge').innerHTML = `<div class="name">${currentUser.email}</div><button onclick="logout()">Sair</button>`;
+  ligarListenerCompartilhado();
+}
+
+auth.onAuthStateChanged(async (user) => {
+  if (user) { await processarLoginAutenticado(user.email); }
+  else if (currentUser) {
+    currentUser = null;
+    document.getElementById('loginOverlay').style.display = 'flex';
+    document.getElementById('appWrap').style.display = 'none';
+  }
+});
+
+window.addEventListener('load', () => {
+  document.getElementById('loginEmail').focus();
+  document.getElementById('loginSenha').addEventListener('keydown', e => { if (e.key === 'Enter') (modoCriarConta ? criarConta() : tentarLogin()); });
+  document.getElementById('loginEmail').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('loginSenha').focus(); });
+});
+/* ======================= FIM LOGIN ======================= */
+
+/* ======================= DADOS COMPARTILHADOS (correções/exceções via Firestore) ======================= */
+let unsubscribeCompartilhado = null;
+
+function ligarListenerCompartilhado() {
+  if (unsubscribeCompartilhado) unsubscribeCompartilhado();
+  unsubscribeCompartilhado = db.collection('pedidos_compartilhado').doc('dados').onSnapshot(doc => {
+    const d = doc.exists ? doc.data() : {};
+    correcoes = d.correcoes || [];
+    excecoes = d.excecoes || [];
+    excecaoZeroAlunos = d.excecaoZeroAlunos !== undefined ? d.excecaoZeroAlunos : true;
+    renderFixTable();
+    renderExcTable();
+    document.getElementById('excZeroAlunos').checked = excecaoZeroAlunos;
+  }, e => console.error('Erro ao sincronizar dados compartilhados', e));
+}
+
+async function salvarDadosCompartilhados() {
+  try {
+    await db.collection('pedidos_compartilhado').doc('dados').set({ correcoes, excecoes, excecaoZeroAlunos, atualizadoEm: new Date().toISOString(), autor: currentUser ? currentUser.email : '' });
+  } catch (e) {
+    console.error('Erro ao salvar dados compartilhados', e);
+    alert('Erro ao salvar: ' + e.message);
+  }
+}
+/* ======================= FIM DADOS COMPARTILHADOS ======================= */
+
+function norm(s){
+  if(s===null||s===undefined) return '';
+  return String(s).trim().toLowerCase().replace(/\s+/g,' ');
+}
+function pad(n){return n<10?'0'+n:''+n;}
+function dateKeyUTC(d){
+  if(d===null || d===undefined || d==='') return null;
+  if(d instanceof Date) return d.getUTCFullYear()+'-'+pad(d.getUTCMonth()+1)+'-'+pad(d.getUTCDate());
+  if(typeof d === 'number'){
+    // número serial do Excel (célula sem formatação de data reconhecida) — usa o parser oficial do SheetJS
+    try{
+      const dc = XLSX.SSF.parse_date_code(d);
+      if(dc) return dc.y+'-'+pad(dc.m)+'-'+pad(dc.d);
+    }catch(e){ /* segue para tratamento de texto */ }
+  }
+  const s = String(d).trim();
+  if(/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0,10); // já em ISO (ex: veio do cache)
+  const br = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/); // formato brasileiro DD/MM/AAAA
+  if(br) return br[3]+'-'+pad(+br[2])+'-'+pad(+br[1]);
+  return s.slice(0,10);
+}
+function dateKeyLocal(d){
+  return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+}
+function fmtDate(key){
+  if(!key) return '—';
+  const [y,m,d] = key.split('-');
+  return d+'/'+m+'/'+y;
+}
+function fmtNum(n){
+  if(n===undefined||n===null||Number.isNaN(n)) return '—';
+  return Math.round(n).toLocaleString('pt-BR');
+}
+function correctEscola(marca, unidade, turma, turno){
+  const candidatos = correcoes.filter(r =>
+    norm(r.marcaDe)===norm(marca) && norm(r.unidadeDe)===norm(unidade) &&
+    (!r.turmaDe || norm(r.turmaDe)===norm(turma)) &&
+    (!r.turnoDe || norm(r.turnoDe)===norm(turno))
+  );
+  if(!candidatos.length) return {marca, unidade, turma, turno};
+  // regra mais específica vence (mais campos opcionais preenchidos)
+  candidatos.sort((a,b)=> ((b.turmaDe?1:0)+(b.turnoDe?1:0)) - ((a.turmaDe?1:0)+(a.turnoDe?1:0)));
+  const r = candidatos[0];
+  return {
+    marca: r.marcaPara, unidade: r.unidadePara,
+    turma: r.turmaPara || turma, turno: r.turnoPara || turno
+  };
+}
+
+/* ---------- Selects em cascata (Marca -> Unidade -> Turma -> Turno) para as correções ---------- */
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+// index: marca -> unidade -> turma -> Set(turno)
+function buildFullIndex(rows, marcaCol, unidadeCol, turmaCol, turnoCol){
+  const map = new Map();
+  (rows||[]).forEach(r=>{
+    const m = r[marcaCol], u = r[unidadeCol], t = r[turmaCol], tn = r[turnoCol];
+    if(!m || !u || m==='Total') return;
+    if(!map.has(m)) map.set(m, new Map());
+    const um = map.get(m);
+    if(!u) return;
+    if(!um.has(u)) um.set(u, new Map());
+    if(!t) return;
+    const tm = um.get(u);
+    if(!tm.has(t)) tm.set(t, new Set());
+    if(tn) tm.get(t).add(tn);
+  });
+  return map;
+}
+function opts(list, placeholder){
+  return `<option value="">${placeholder}</option>` + list.map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+}
+function populateMarcaSelect(selectEl, map, placeholder){
+  const marcas = [...map.keys()].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+  selectEl.innerHTML = opts(marcas, placeholder);
+}
+function populateUnidadeSelect(selectEl, map, marca, placeholder){
+  if(!marca || !map.has(marca)){ selectEl.innerHTML = `<option value="">Selecione a marca primeiro</option>`; selectEl.disabled = true; return; }
+  const unidades = [...map.get(marca).keys()].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+  selectEl.innerHTML = opts(unidades, placeholder);
+  selectEl.disabled = false;
+}
+function populateTurmaSelect(selectEl, map, marca, unidade, placeholder){
+  if(!marca || !unidade || !map.has(marca) || !map.get(marca).has(unidade)){ selectEl.innerHTML = `<option value="">${placeholder}</option>`; selectEl.disabled = true; return; }
+  const turmas = [...map.get(marca).get(unidade).keys()].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+  selectEl.innerHTML = opts(turmas, placeholder);
+  selectEl.disabled = false;
+}
+function populateTurnoSelect(selectEl, map, marca, unidade, turma, placeholder){
+  if(!marca || !unidade || !turma || !map.has(marca) || !map.get(marca).has(unidade) || !map.get(marca).get(unidade).has(turma)){ selectEl.innerHTML = `<option value="">${placeholder}</option>`; selectEl.disabled = true; return; }
+  const turnos = [...map.get(marca).get(unidade).get(turma)].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+  selectEl.innerHTML = opts(turnos, placeholder);
+  selectEl.disabled = false;
+}
+
+let painelIndex = new Map();
+let adocaoIndex = new Map();
+
+function refreshPainelIndex(){
+  painelIndex = buildFullIndex(state.painel, 'Marca', 'Unidade', 'Série', 'Turno');
+  populateMarcaSelect(document.getElementById('fixMarcaDe'), painelIndex, 'Selecione a marca...');
+  populateUnidadeSelect(document.getElementById('fixUnidadeDe'), painelIndex, document.getElementById('fixMarcaDe').value, 'Selecione a unidade...');
+  populateTurmaSelect(document.getElementById('fixTurmaDe'), painelIndex, document.getElementById('fixMarcaDe').value, document.getElementById('fixUnidadeDe').value, 'Qualquer turma');
+  populateTurnoSelect(document.getElementById('fixTurnoDe'), painelIndex, document.getElementById('fixMarcaDe').value, document.getElementById('fixUnidadeDe').value, document.getElementById('fixTurmaDe').value, 'Qualquer turno');
+}
+function refreshAdocaoIndex(){
+  adocaoIndex = buildFullIndex(state.adocao, 'Marca', 'Unidade', 'Turma', 'Turno');
+  populateMarcaSelect(document.getElementById('fixMarcaPara'), adocaoIndex, 'Selecione a marca...');
+  populateUnidadeSelect(document.getElementById('fixUnidadePara'), adocaoIndex, document.getElementById('fixMarcaPara').value, 'Selecione a unidade...');
+  populateTurmaSelect(document.getElementById('fixTurmaPara'), adocaoIndex, document.getElementById('fixMarcaPara').value, document.getElementById('fixUnidadePara').value, 'Não alterar');
+  populateTurnoSelect(document.getElementById('fixTurnoPara'), adocaoIndex, document.getElementById('fixMarcaPara').value, document.getElementById('fixUnidadePara').value, document.getElementById('fixTurmaPara').value, 'Não alterar');
+}
+document.getElementById('fixMarcaDe').addEventListener('change', e=>{
+  populateUnidadeSelect(document.getElementById('fixUnidadeDe'), painelIndex, e.target.value, 'Selecione a unidade...');
+  populateTurmaSelect(document.getElementById('fixTurmaDe'), painelIndex, e.target.value, '', 'Qualquer turma');
+  populateTurnoSelect(document.getElementById('fixTurnoDe'), painelIndex, e.target.value, '', '', 'Qualquer turno');
+});
+document.getElementById('fixUnidadeDe').addEventListener('change', e=>{
+  const marca = document.getElementById('fixMarcaDe').value;
+  populateTurmaSelect(document.getElementById('fixTurmaDe'), painelIndex, marca, e.target.value, 'Qualquer turma');
+  populateTurnoSelect(document.getElementById('fixTurnoDe'), painelIndex, marca, e.target.value, '', 'Qualquer turno');
+});
+document.getElementById('fixTurmaDe').addEventListener('change', e=>{
+  const marca = document.getElementById('fixMarcaDe').value;
+  const unidade = document.getElementById('fixUnidadeDe').value;
+  populateTurnoSelect(document.getElementById('fixTurnoDe'), painelIndex, marca, unidade, e.target.value, 'Qualquer turno');
+});
+document.getElementById('fixMarcaPara').addEventListener('change', e=>{
+  populateUnidadeSelect(document.getElementById('fixUnidadePara'), adocaoIndex, e.target.value, 'Selecione a unidade...');
+  populateTurmaSelect(document.getElementById('fixTurmaPara'), adocaoIndex, e.target.value, '', 'Não alterar');
+  populateTurnoSelect(document.getElementById('fixTurnoPara'), adocaoIndex, e.target.value, '', '', 'Não alterar');
+});
+document.getElementById('fixUnidadePara').addEventListener('change', e=>{
+  const marca = document.getElementById('fixMarcaPara').value;
+  populateTurmaSelect(document.getElementById('fixTurmaPara'), adocaoIndex, marca, e.target.value, 'Não alterar');
+  populateTurnoSelect(document.getElementById('fixTurnoPara'), adocaoIndex, marca, e.target.value, '', 'Não alterar');
+});
+document.getElementById('fixTurmaPara').addEventListener('change', e=>{
+  const marca = document.getElementById('fixMarcaPara').value;
+  const unidade = document.getElementById('fixUnidadePara').value;
+  populateTurnoSelect(document.getElementById('fixTurnoPara'), adocaoIndex, marca, unidade, e.target.value, 'Não alterar');
+});
+
+/* ---------- Correções de nomenclatura ---------- */
+function renderFixTable(){
+  const el = document.getElementById('fixTable');
+  if(!correcoes.length){
+    el.innerHTML = `<tr><td class="fix-empty">Nenhuma correção cadastrada ainda.</td></tr>`;
+    return;
+  }
+  const qq = '<span style="color:var(--text-faint)">qualquer</span>';
+  const na = '<span style="color:var(--text-faint)">—</span>';
+  el.innerHTML = `
+    <thead><tr><th>Marca (de)</th><th>Unidade (de)</th><th>Turma (de)</th><th>Turno (de)</th><th></th><th>Marca (para)</th><th>Unidade (para)</th><th>Turma (para)</th><th>Turno (para)</th><th></th></tr></thead>
+    <tbody>
+      ${correcoes.map((r,i)=>`
+        <tr>
+          <td class="mono">${r.marcaDe}</td>
+          <td class="mono">${r.unidadeDe}</td>
+          <td class="mono">${r.turmaDe || qq}</td>
+          <td class="mono">${r.turnoDe || qq}</td>
+          <td class="mono" style="color:var(--text-faint)">→</td>
+          <td class="mono">${r.marcaPara}</td>
+          <td class="mono">${r.unidadePara}</td>
+          <td class="mono">${r.turmaPara || na}</td>
+          <td class="mono">${r.turnoPara || na}</td>
+          <td><button class="fix-rm" data-i="${i}" title="Remover">✕</button></td>
+        </tr>
+      `).join('')}
+    </tbody>
+  `;
+  el.querySelectorAll('.fix-rm').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      correcoes.splice(Number(btn.dataset.i), 1);
+      renderFixTable();
+      await saveCorrecoes();
+    });
+  });
+}
+
+async function saveCorrecoes(){ await salvarDadosCompartilhados(); }
+
+document.getElementById('fixAddBtn').addEventListener('click', async ()=>{
+  const marcaDe = document.getElementById('fixMarcaDe').value.trim();
+  const unidadeDe = document.getElementById('fixUnidadeDe').value.trim();
+  const turmaDe = document.getElementById('fixTurmaDe').value.trim();
+  const turnoDe = document.getElementById('fixTurnoDe').value.trim();
+  const marcaPara = document.getElementById('fixMarcaPara').value.trim();
+  const unidadePara = document.getElementById('fixUnidadePara').value.trim();
+  const turmaPara = document.getElementById('fixTurmaPara').value.trim();
+  const turnoPara = document.getElementById('fixTurnoPara').value.trim();
+  if(!marcaDe || !unidadeDe || !marcaPara || !unidadePara) return;
+  correcoes = correcoes.filter(r => !(norm(r.marcaDe)===norm(marcaDe) && norm(r.unidadeDe)===norm(unidadeDe) && norm(r.turmaDe)===norm(turmaDe) && norm(r.turnoDe)===norm(turnoDe)));
+  correcoes.push({marcaDe, unidadeDe, turmaDe, turnoDe, marcaPara, unidadePara, turmaPara, turnoPara});
+  renderFixTable();
+  await saveCorrecoes();
+});
+
+/* ---------- Exceções conhecidas ---------- */
+function matchesExcecao(row, rule){
+  // row: {Marca, Unidade, Serie, Turno}
+  if(rule.marca && norm(rule.marca)!==norm(row.Marca)) return false;
+  if(rule.unidade && norm(rule.unidade)!==norm(row.Unidade)) return false;
+  if(rule.turma && !norm(row.Serie).includes(norm(rule.turma))) return false;
+  if(!rule.marca && !rule.unidade && !rule.turma) return false;
+  return true;
+}
+function isExcecao(row){
+  return excecoes.some(r => matchesExcecao(row, r));
+}
+
+function renderExcTable(){
+  const el = document.getElementById('excTable');
+  if(!excecoes.length){
+    el.innerHTML = `<tr><td class="fix-empty">Nenhuma exceção cadastrada ainda.</td></tr>`;
+    return;
+  }
+  el.innerHTML = `
+    <thead><tr><th>Marca</th><th>Unidade</th><th>Turma contém</th><th>Motivo</th><th></th></tr></thead>
+    <tbody>
+      ${excecoes.map((r,i)=>`
+        <tr>
+          <td>${r.marca ? `<span class="fix-tag exc">${r.marca}</span>` : '<span style="color:var(--text-faint)">qualquer</span>'}</td>
+          <td>${r.unidade ? `<span class="fix-tag exc">${r.unidade}</span>` : '<span style="color:var(--text-faint)">qualquer</span>'}</td>
+          <td class="mono">${r.turma || '<span style="color:var(--text-faint)">qualquer</span>'}</td>
+          <td class="txt" style="color:var(--text-dim)">${r.motivo||'—'}</td>
+          <td><button class="fix-rm" data-i="${i}" title="Remover">✕</button></td>
+        </tr>
+      `).join('')}
+    </tbody>
+  `;
+  el.querySelectorAll('.fix-rm').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      excecoes.splice(Number(btn.dataset.i), 1);
+      renderExcTable();
+      await saveExcecoes();
+    });
+  });
+}
+
+async function saveExcecoes(){ await salvarDadosCompartilhados(); }
+async function saveExcecaoZeroAlunos(){ await salvarDadosCompartilhados(); }
+
+document.getElementById('excZeroAlunos').addEventListener('change', async (e)=>{
+  excecaoZeroAlunos = e.target.checked;
+  await saveExcecaoZeroAlunos();
+});
+
+document.getElementById('excAddBtn').addEventListener('click', async ()=>{
+  const marca = document.getElementById('excMarca').value.trim();
+  const unidade = document.getElementById('excUnidade').value.trim();
+  const turma = document.getElementById('excTurma').value.trim();
+  const motivo = document.getElementById('excMotivo').value.trim();
+  if(!marca && !unidade && !turma) return;
+  excecoes.push({marca, unidade, turma, motivo});
+  document.getElementById('excMarca').value = '';
+  document.getElementById('excUnidade').value = '';
+  document.getElementById('excTurma').value = '';
+  document.getElementById('excMotivo').value = '';
+  renderExcTable();
+  await saveExcecoes();
+});
+
+/* ---------- Friday runway (signature header) ---------- */
+function renderRunway(){
+  const el = document.getElementById('runway');
+  const today = new Date();
+  // find current/next Friday index sequence: show 5 Fridays centered near today
+  const fridays = [];
+  const d = new Date(today);
+  d.setDate(d.getDate() - d.getDay()); // back to Sunday
+  for(let i=-1;i<=3;i++){
+    const f = new Date(d);
+    f.setDate(d.getDate() + 5 + i*7);
+    fridays.push(f);
+  }
+  const todayKey = dateKeyLocal(today);
+  el.innerHTML = fridays.map(f=>{
+    const key = dateKeyLocal(f);
+    const isToday = key===todayKey || (f.getDay()===5 && Math.abs(f-today)<24*3600*1000 && todayKey===dateKeyLocal(f));
+    const label = f.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'});
+    return `<div class="cell${todayKey && sameWeek(f,today) ? ' today':''}"><div class="d">SEX</div><div class="lbl">${label}</div></div>`;
+  }).join('');
+}
+function sameWeek(a,b){
+  const d = new Date(a); d.setDate(d.getDate());
+  const startA = new Date(a); startA.setDate(a.getDate()-a.getDay());
+  const startB = new Date(b); startB.setDate(b.getDate()-b.getDay());
+  return startA.toDateString()===startB.toDateString();
+}
+
+/* ---------- Upload cards ---------- */
+function renderUploadGrid(){
+  const grid = document.getElementById('uploadGrid');
+  grid.innerHTML = SLOTS.map(s=>`
+    <div class="card" id="card-${s.key}">
+      <div class="icon">${s.icon}</div>
+      <div class="name">${s.label}</div>
+      <div class="req">${s.required?'Obrigatório':'Opcional'}</div>
+      <div class="status" id="status-${s.key}">Nenhum arquivo carregado</div>
+      <input type="file" id="file-${s.key}" accept=".xlsx,.xls,.csv" />
+      <label class="btn" for="file-${s.key}">Carregar arquivo</label>
+      <button class="btn remove-btn" id="remove-${s.key}" style="display:none;">Remover arquivo</button>
+    </div>
+  `).join('');
+
+  SLOTS.forEach(s=>{
+    document.getElementById(`file-${s.key}`).addEventListener('change', e=>{
+      const f = e.target.files[0];
+      if(f) handleFile(s, f);
+    });
+    document.getElementById(`remove-${s.key}`).addEventListener('click', ()=> clearBase(s));
+  });
+}
+
+async function handleFile(slot, file){
+  setStatus(slot.key, `Lendo ${file.name}...`, false);
+  try{
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, {type:'array', cellDates:true});
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    let rows = XLSX.utils.sheet_to_json(sheet, {defval:null});
+    state[slot.key] = rows;
+    meta[slot.key] = {filename:file.name, rows:rows.length, cached:false, date:new Date()};
+    setStatus(slot.key, `${file.name}\n${rows.length.toLocaleString('pt-BR')} linhas`, true);
+    if(slot.cache) await saveCache(slot.key, slot.need);
+    if(slot.key==='painel') refreshPainelIndex();
+    if(slot.key==='adocao') refreshAdocaoIndex();
+    updateProcessButton();
+  }catch(err){
+    setStatus(slot.key, `Erro ao ler arquivo: ${err.message}`, false);
+  }
+}
+
+async function clearBase(slot){
+  delete state[slot.key];
+  delete meta[slot.key];
+  const fileInput = document.getElementById(`file-${slot.key}`);
+  if(fileInput) fileInput.value = '';
+  setStatus(slot.key, 'Nenhum arquivo carregado', false);
+  const card = document.getElementById(`card-${slot.key}`);
+  const tag = card.querySelector('.cached-tag');
+  if(tag) tag.remove();
+  if(slot.cache){
+    try{
+      await storageDelete(KEY_PREFIX+'md_base_'+slot.key, false);
+      await storageDelete(KEY_PREFIX+'md_base_'+slot.key+'_meta', false);
+    }catch(e){ console.error('erro ao remover base salva', e); }
+  }
+  if(slot.key==='painel') refreshPainelIndex();
+  if(slot.key==='adocao') refreshAdocaoIndex();
+  updateProcessButton();
+}
+
+function setStatus(key, text, ready){
+  document.getElementById(`status-${key}`).innerText = text;
+  document.getElementById(`card-${key}`).classList.toggle('ready', !!ready);
+  document.getElementById(`remove-${key}`).style.display = ready ? 'block' : 'none';
+}
+
+async function saveCache(key, need){
+  try{
+    // formato compacto: colunas uma vez + linhas como arrays (evita repetir nomes de coluna 15 mil vezes)
+    const compactRows = state[key].map(r => need.map(c => {
+      const v = r[c];
+      return v instanceof Date ? v.toISOString() : v;
+    }));
+    const payload = JSON.stringify({cols: need, data: compactRows});
+    const sizeMB = (new Blob([payload]).size / 1024 / 1024).toFixed(2);
+    const res = await storageSet(KEY_PREFIX+'md_base_'+key, payload, false);
+    if(!res) throw new Error('storage.set retornou vazio');
+    await storageSet(KEY_PREFIX+'md_base_'+key+'_meta', JSON.stringify({filename:meta[key].filename, rows:meta[key].rows, date:meta[key].date, sizeMB}), false);
+  }catch(e){
+    console.error('cache save failed', e);
+    const statusEl = document.getElementById(`status-${key}`);
+    statusEl.innerText += `\n⚠️ não foi possível salvar para a próxima sexta (arquivo será usado só nesta sessão)`;
+  }
+}
+
+function expandCompact(payload){
+  const {cols, data} = payload;
+  return data.map(arr => {
+    const o = {};
+    cols.forEach((c,i)=> o[c] = arr[i]);
+    return o;
+  });
+}
+
+async function loadCaches(){
+  for(const s of SLOTS){
+    if(!s.cache) continue;
+    try{
+      const dataRes = await storageGet(KEY_PREFIX+'md_base_'+s.key, false);
+      const metaRes = await storageGet(KEY_PREFIX+'md_base_'+s.key+'_meta', false);
+      if(dataRes && metaRes){
+        const payload = JSON.parse(dataRes.value);
+        state[s.key] = expandCompact(payload);
+        const m = JSON.parse(metaRes.value);
+        meta[s.key] = {filename:m.filename, rows:m.rows, cached:true, date:new Date(m.date)};
+        const dt = new Date(m.date);
+        setStatus(s.key, `${m.filename}\n${m.rows.toLocaleString('pt-BR')} linhas · salvo em ${dt.toLocaleDateString('pt-BR')}`, true);
+        const card = document.getElementById(`card-${s.key}`);
+        const tag = document.createElement('div');
+        tag.className='cached-tag';
+        tag.innerText='usando versão salva';
+        card.insertBefore(tag, card.querySelector('.status'));
+      }
+    }catch(e){ console.error('cache load failed for', s.key, e); }
+  }
+  if(state.painel) refreshPainelIndex();
+  if(state.adocao) refreshAdocaoIndex();
+  updateProcessButton();
+}
+
+function updateProcessButton(){
+  const missing = SLOTS.filter(s=>s.required && !state[s.key]);
+  const btn = document.getElementById('processBtn');
+  const hint = document.getElementById('processHint');
+  btn.disabled = missing.length>0;
+  hint.innerText = missing.length>0
+    ? `Faltam: ${missing.map(m=>m.label).join(', ')}`
+    : 'Pronto para processar.';
+}
+
+/* ---------- Pipeline ---------- */
+let lastReport = null;
+
+function process(){
+  const painelRaw = state.painel || [];
+  const adocaoRaw = state.adocao || [];
+  const calRaw = state.calendario || [];
+  const pedRaw = state.pedidos || [];
+  const orcRaw = state.orcamento || [];
+  const bonRaw = state.bonificados || [];
+
+  // 1. Painel: filtra linhas válidas (remove totais / rodapés) e aplica correções de nomenclatura
+  const painelRows = painelRaw
+    .filter(r => r['Marca'] && r['Marca']!=='Total' && r['Unidade'] && r['Série'] && r['Turno'])
+    .map(r => {
+      const c = correctEscola(r['Marca'], r['Unidade'], r['Série'], r['Turno']);
+      return {...r, Marca: c.marca, Unidade: c.unidade, Série: c.turma, Turno: c.turno};
+    });
+  const painelMap = new Map();
+  painelRows.forEach(r=>{
+    const k = [norm(r['Marca']), norm(r['Unidade']), norm(r['Série']), norm(r['Turno'])].join('|');
+    if(!painelMap.has(k)) painelMap.set(k, r['Real Adesão (#)']||0);
+  });
+
+  // 1b. Alunos contratantes fora do painel: soma só quem NÃO aparece na adesão do painel, por turma
+  const bonusMap = new Map();
+  const bonRowsCorrected = bonRaw.map(r=>{
+    const c = correctEscola(r['Marca'], r['Unidade'], r['Turma'], r['Turno']);
+    return {...r, Marca:c.marca, Unidade:c.unidade, Turma:c.turma, Turno:c.turno};
+  });
+  bonRowsCorrected
+    .filter(r => norm(r['Aparece na adesão do painel?'])==='não' || norm(r['Aparece na adesão do painel?'])==='nao')
+    .forEach(r=>{
+      const k = [norm(r['Marca']), norm(r['Unidade']), norm(r['Turma']), norm(r['Turno'])].join('|');
+      bonusMap.set(k, (bonusMap.get(k)||0) + (r['Qtd de alunos']||0));
+    });
+
+  // 2. Lista de adoção: calcula alunos por escola+coleção, mapeia marca/unidade -> idescola
+  const alunosMap = new Map(); // normEscola|||coleção -> {alunos, selo}
+  const turmaSeloMap = new Map(); // turmaKey|||selo -> alunosCalc somado (para checks de cobertura por selo)
+  const selosExistentes = new Set();
+  const mapEscola = new Map(); // marca|unidade (normalizado, já com correções) -> normEscola
+  const idEscolaCanon = new Map(); // normEscola -> nome de exibição (prioridade: Lista de adoção)
+  const adocaoKeys = new Set();
+  const unmatchedAdocao = [];
+  const unmatchedUtilizacao = [];
+
+  adocaoRaw.forEach(r=>{
+    const idEscolaNorm = norm(r['Id Escola']);
+    if(!idEscolaCanon.has(idEscolaNorm)) idEscolaCanon.set(idEscolaNorm, r['Id Escola']);
+    const kescola = norm(r['Marca'])+'|'+norm(r['Unidade']);
+    if(!mapEscola.has(kescola)) mapEscola.set(kescola, idEscolaNorm);
+
+    const kturma = [norm(r['Marca']), norm(r['Unidade']), norm(r['Turma']), norm(r['Turno'])].join('|');
+    adocaoKeys.add(kturma);
+    if(r['Selo']) selosExistentes.add(r['Selo']);
+    const temPainel = painelMap.has(kturma);
+    const temBonus = bonusMap.has(kturma);
+    if(!temPainel && !temBonus){
+      unmatchedAdocao.push({Marca:r['Marca'], Unidade:r['Unidade'], Turma:r['Turma'], Turno:r['Turno'], Coleção:r['Coleção']});
+      return;
+    }
+    const alunosPainel = (painelMap.get(kturma)||0) + (bonusMap.get(kturma)||0);
+    const utilVazia = r['Utilização']===null || r['Utilização']===undefined || r['Utilização']==='';
+    if(utilVazia){
+      unmatchedUtilizacao.push({Marca:r['Marca'], Unidade:r['Unidade'], Turma:r['Turma'], Turno:r['Turno'], Coleção:r['Coleção']});
+    }
+    const util = utilVazia ? 1 : r['Utilização'];
+    const alunosCalc = Math.round(alunosPainel*util);
+    const key = idEscolaNorm+'|||'+r['Coleção'];
+    const prev = alunosMap.get(key) || {alunos:0, selo:r['Selo']};
+    prev.alunos += alunosCalc;
+    prev.selo = r['Selo'];
+    alunosMap.set(key, prev);
+    if(r['Selo']){
+      const tsKey = kturma+'|||'+r['Selo'];
+      turmaSeloMap.set(tsKey, (turmaSeloMap.get(tsKey)||0) + alunosCalc);
+    }
+  });
+
+  // turmas do painel sem NENHUMA correspondência na lista de adoção (excluindo exceções conhecidas)
+  const unmatchedPainelAll = painelRows.filter(r=>{
+    const k = [norm(r['Marca']), norm(r['Unidade']), norm(r['Série']), norm(r['Turno'])].join('|');
+    return !adocaoKeys.has(k);
+  });
+  const unmatchedPainel = unmatchedPainelAll.filter(r=>{
+    if(excecaoZeroAlunos && !(r['Real Adesão (#)']>0)) return false;
+    return !isExcecao({Marca:r['Marca'], Unidade:r['Unidade'], Serie:r['Série'], Turno:r['Turno']});
+  });
+  const ignoradosPorExcecao = unmatchedPainelAll.length - unmatchedPainel.length;
+
+  // 3. Calendário: deduplica por idescola (normalizado)+coleção+volume
+  const calSeen = new Set();
+  const calRows = [];
+  calRaw.forEach(r=>{
+    const idEscolaNorm = norm(r['ID Escola']);
+    if(!idEscolaCanon.has(idEscolaNorm)) idEscolaCanon.set(idEscolaNorm, r['ID Escola']);
+    const key = idEscolaNorm+'|||'+r['Coleção']+'|||'+r['Volume Coleção'];
+    if(calSeen.has(key)) return;
+    calSeen.add(key);
+    calRows.push({
+      IdEscola:idEscolaNorm, Colecao:r['Coleção'], Volume:r['Volume Coleção'],
+      Sexta:r['Data do pedido']
+    });
+  });
+
+  // 4. Pedidos feitos: considera só linhas efetivamente enviadas às escolas
+  const pedidosAgg = new Map();
+  pedRaw
+    .filter(r => norm(r['Considera para quantidade enviada?'])==='sim')
+    .forEach(r=>{
+      const key = norm(r['ID Escola'])+'|||'+r['COLEÇÃO']+'|||'+r['VOLUME'];
+      pedidosAgg.set(key, (pedidosAgg.get(key)||0) + (r['QUANTIDADE']||0));
+    });
+
+  // 5. Orçamento: mapeia marca/unidade -> idescola, agrega qtd orçada
+  const orcAgg = new Map();
+  const unmatchedOrc = [];
+  const seenUnmatchedOrc = new Set();
+  const orcRowsCorrected = orcRaw.map(r=>{
+    const c = correctEscola(r['Marca'], r['Unidade'], r['Turma'], r['Turno']);
+    return {...r, Marca:c.marca, Unidade:c.unidade, Turma:c.turma, Turno:c.turno};
+  });
+  orcRowsCorrected.forEach(r=>{
+    const korig = norm(r['Marca'])+'|'+norm(r['Unidade']);
+    const idesc = mapEscola.get(korig);
+    if(!idesc){
+      if(!seenUnmatchedOrc.has(korig)){
+        seenUnmatchedOrc.add(korig);
+        unmatchedOrc.push({Marca:r['Marca'], Unidade:r['Unidade']});
+      }
+      return;
+    }
+    const key = idesc+'|||'+r['Coleção']+'|||'+r['Volume Coleção'];
+    orcAgg.set(key, (orcAgg.get(key)||0) + (r['Qtd Orç']||0));
+  });
+
+  // 6. Monta base final
+  const todayKey = dateKeyLocal(new Date());
+  const noAlunoInfo = [];
+  const finalRows = calRows.map(c=>{
+    const aKey = c.IdEscola+'|||'+c.Colecao;
+    const ainfo = alunosMap.get(aKey);
+    const displayEscola = idEscolaCanon.get(c.IdEscola) || c.IdEscola;
+    if(!ainfo) noAlunoInfo.push({IdEscola:displayEscola, Coleção:c.Colecao});
+    const pedKey = c.IdEscola+'|||'+c.Colecao+'|||'+c.Volume;
+    const qtdPedida = pedidosAgg.has(pedKey) ? pedidosAgg.get(pedKey) : undefined;
+    const jaFeito = qtdPedida !== undefined;
+    const prevKey = c.IdEscola+'|||'+c.Colecao+'|||'+(c.Volume-1);
+    const qtdVolAnterior = pedidosAgg.has(prevKey) ? pedidosAgg.get(prevKey) : undefined;
+    const qtdOrcada = orcAgg.has(pedKey) ? orcAgg.get(pedKey) : undefined;
+    const sextaKey = dateKeyUTC(c.Sexta);
+
+    let status = 'Futuro';
+    if(jaFeito) status = 'Feito';
+    else if(sextaKey===todayKey) status = 'Pedido do dia';
+    else if(sextaKey && sextaKey<todayKey) status = 'Atrasado';
+
+    return {
+      IdEscola:displayEscola, Selo: ainfo?ainfo.selo:null, Colecao:c.Colecao, Volume:c.Volume,
+      Alunos: ainfo?ainfo.alunos:null, SextaKey:sextaKey, QtdPedida:qtdPedida,
+      QtdVolAnterior:qtdVolAnterior, QtdOrcada:qtdOrcada, Status:status
+    };
+  });
+
+  const pedidosDoDia = finalRows.filter(r=>r.Status==='Pedido do dia').sort((a,b)=> a.IdEscola.localeCompare(b.IdEscola));
+  const atrasados = finalRows.filter(r=>r.Status==='Atrasado').sort((a,b)=> (a.SextaKey||'').localeCompare(b.SextaKey||''));
+
+  /* ================= CHECKS DE CONSISTÊNCIA ENTRE BASES ================= */
+  const selosOrdenados = [...selosExistentes].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+
+  // Check 1: pivot turma x selo (alunos calculados por selo) + alunos do painel
+  const turmasPainelUnicas = new Map(); // turmaKey -> {Marca,Unidade,Turma,Turno,Alunos}
+  painelRows.forEach(r=>{
+    const k = [norm(r['Marca']), norm(r['Unidade']), norm(r['Série']), norm(r['Turno'])].join('|');
+    if(!turmasPainelUnicas.has(k)){
+      turmasPainelUnicas.set(k, {Marca:r['Marca'], Unidade:r['Unidade'], Turma:r['Série'], Turno:r['Turno'], Alunos:r['Real Adesão (#)']||0});
+    }
+  });
+  const check1Pivot = [...turmasPainelUnicas.entries()].map(([k, base])=>{
+    const row = {Marca:base.Marca, Unidade:base.Unidade, Turma:base.Turma, Turno:base.Turno, 'Alunos (Painel)':base.Alunos};
+    let selosPresentes = 0;
+    selosOrdenados.forEach(selo=>{
+      const v = turmaSeloMap.get(k+'|||'+selo);
+      row[selo] = v!==undefined ? v : '';
+      if(v!==undefined) selosPresentes++;
+    });
+    row['Selos cobertos'] = selosPresentes;
+    row['Total de selos'] = selosOrdenados.length;
+    return row;
+  });
+
+  // Check 2: turmas do painel que não cobrem TODOS os selos (lista achatada dos selos faltantes)
+  const check2 = [];
+  turmasPainelUnicas.forEach((base, k)=>{
+    const faltantes = selosOrdenados.filter(selo => !turmaSeloMap.has(k+'|||'+selo));
+    if(faltantes.length && faltantes.length < selosOrdenados.length){
+      // só reporta se a turma tem ALGUMA cobertura (senão já é "unmatchedPainel" - ausência total)
+      faltantes.forEach(selo=>{
+        check2.push({Marca:base.Marca, Unidade:base.Unidade, Turma:base.Turma, Turno:base.Turno, 'Selo faltante':selo});
+      });
+    }
+  });
+
+  // Check 3: turma (marca+unidade+turma+turno) da lista de adoção que não estão no painel
+  const painelTurmaKeySet = new Set(turmasPainelUnicas.keys());
+  const adocaoTurmasUnicas = new Map();
+  adocaoRaw.forEach(r=>{
+    const k = [norm(r['Marca']), norm(r['Unidade']), norm(r['Turma']), norm(r['Turno'])].join('|');
+    if(!adocaoTurmasUnicas.has(k)) adocaoTurmasUnicas.set(k, {Marca:r['Marca'], Unidade:r['Unidade'], Turma:r['Turma'], Turno:r['Turno']});
+  });
+  const check3 = [...adocaoTurmasUnicas.entries()].filter(([k])=>!painelTurmaKeySet.has(k)).map(([,v])=>v);
+
+  // Check 4 e 5: turmas da base de alunos fora do painel que não estão no painel / na lista de adoção
+  const bonTurmasUnicas = new Map();
+  bonRaw.forEach(r=>{
+    const c = correctEscola(r['Marca'], r['Unidade'], r['Turma'], r['Turno']);
+    const k = [norm(c.marca), norm(c.unidade), norm(c.turma), norm(c.turno)].join('|');
+    if(!bonTurmasUnicas.has(k)) bonTurmasUnicas.set(k, {Marca:c.marca, Unidade:c.unidade, Turma:c.turma, Turno:c.turno});
+  });
+  const check4 = [...bonTurmasUnicas.entries()].filter(([k])=>!painelTurmaKeySet.has(k)).map(([,v])=>v);
+  const check5 = [...bonTurmasUnicas.entries()].filter(([k])=>!adocaoKeys.has(k)).map(([,v])=>v);
+
+  // Check 6 e 7: idescola+coleção da lista de adoção vs calendário
+  const escColAdocao = new Map(); // key -> {IdEscola, Coleção}
+  adocaoRaw.forEach(r=>{
+    const idn = norm(r['Id Escola']);
+    const k = idn+'|||'+r['Coleção'];
+    if(!escColAdocao.has(k)) escColAdocao.set(k, {IdEscola: idEscolaCanon.get(idn)||r['Id Escola'], Coleção:r['Coleção']});
+  });
+  const escColCal = new Map();
+  calRaw.forEach(r=>{
+    const idn = norm(r['ID Escola']);
+    const k = idn+'|||'+r['Coleção'];
+    if(!escColCal.has(k)) escColCal.set(k, {IdEscola: idEscolaCanon.get(idn)||r['ID Escola'], Coleção:r['Coleção']});
+  });
+  const check6 = [...escColAdocao.entries()].filter(([k])=>!escColCal.has(k)).map(([,v])=>v);
+  const check7 = [...escColCal.entries()].filter(([k])=>!escColAdocao.has(k)).map(([,v])=>v);
+
+  // Check 8 e 9: marca+unidade+turma+turno+coleção da lista de adoção vs orçamento
+  const mutcColAdocao = new Map();
+  adocaoRaw.forEach(r=>{
+    const k = [norm(r['Marca']), norm(r['Unidade']), norm(r['Turma']), norm(r['Turno']), r['Coleção']].join('|||');
+    if(!mutcColAdocao.has(k)) mutcColAdocao.set(k, {Marca:r['Marca'], Unidade:r['Unidade'], Turma:r['Turma'], Turno:r['Turno'], Coleção:r['Coleção']});
+  });
+  const mutcColOrc = new Map();
+  orcRaw.forEach(r=>{
+    const c = correctEscola(r['Marca'], r['Unidade'], r['Turma'], r['Turno']);
+    const k = [norm(c.marca), norm(c.unidade), norm(c.turma), norm(c.turno), r['Coleção']].join('|||');
+    if(!mutcColOrc.has(k)) mutcColOrc.set(k, {Marca:c.marca, Unidade:c.unidade, Turma:c.turma, Turno:c.turno, Coleção:r['Coleção']});
+  });
+  const check8 = [...mutcColAdocao.entries()].filter(([k])=>!mutcColOrc.has(k)).map(([,v])=>v);
+  const check9 = [...mutcColOrc.entries()].filter(([k])=>!mutcColAdocao.has(k)).map(([,v])=>v);
+
+  // Check 10: idescola+coleção+volume da base de pedidos feitos que não estão no orçamento
+  const escColVolOrc = new Set();
+  orcRaw.forEach(r=>{
+    const c = correctEscola(r['Marca'], r['Unidade'], r['Turma'], r['Turno']);
+    const idesc = mapEscola.get(norm(c.marca)+'|'+norm(c.unidade));
+    if(idesc) escColVolOrc.add(idesc+'|||'+r['Coleção']+'|||'+r['Volume Coleção']);
+  });
+  const check10 = [];
+  const seenCheck10 = new Set();
+  pedRaw.forEach(r=>{
+    const idn = norm(r['ID Escola']);
+    const k = idn+'|||'+r['COLEÇÃO']+'|||'+r['VOLUME'];
+    if(!escColVolOrc.has(k) && !seenCheck10.has(k)){
+      seenCheck10.add(k);
+      check10.push({IdEscola: idEscolaCanon.get(idn)||r['ID Escola'], Coleção:r['COLEÇÃO'], Volume:r['VOLUME']});
+    }
+  });
+
+  // Check 11: idescola+coleção da base de pedidos que pulam volume
+  const pedVolumesByEscCol = new Map();
+  pedRaw.forEach(r=>{
+    const idn = norm(r['ID Escola']);
+    const k = idn+'|||'+r['COLEÇÃO'];
+    if(!pedVolumesByEscCol.has(k)) pedVolumesByEscCol.set(k, {IdEscola: idEscolaCanon.get(idn)||r['ID Escola'], Coleção:r['COLEÇÃO'], vols:new Set()});
+    if(typeof r['VOLUME']==='number') pedVolumesByEscCol.get(k).vols.add(r['VOLUME']);
+  });
+  const check11 = [];
+  pedVolumesByEscCol.forEach(({IdEscola, Coleção, vols})=>{
+    const arr = [...vols].sort((a,b)=>a-b);
+    if(arr.length<2) return;
+    const min = arr[0], max = arr[arr.length-1];
+    const faltantes = [];
+    for(let v=min; v<=max; v++){ if(!vols.has(v)) faltantes.push(v); }
+    if(faltantes.length){
+      check11.push({IdEscola, Coleção, 'Volumes existentes':arr.join(', '), 'Volumes faltantes':faltantes.join(', ')});
+    }
+  });
+
+  // Check 12: idescola+coleção+volume do orçamento que não estão no calendário
+  const escColVolCal = new Set();
+  calRaw.forEach(r=>{
+    escColVolCal.add(norm(r['ID Escola'])+'|||'+r['Coleção']+'|||'+r['Volume Coleção']);
+  });
+  const check12 = [];
+  const seenCheck12 = new Set();
+  orcRaw.forEach(r=>{
+    const c = correctEscola(r['Marca'], r['Unidade'], r['Turma'], r['Turno']);
+    const idesc = mapEscola.get(norm(c.marca)+'|'+norm(c.unidade));
+    if(!idesc) return;
+    const k = idesc+'|||'+r['Coleção']+'|||'+r['Volume Coleção'];
+    if(!escColVolCal.has(k) && !seenCheck12.has(k)){
+      seenCheck12.add(k);
+      check12.push({IdEscola: idEscolaCanon.get(idesc)||idesc, Coleção:r['Coleção'], Volume:r['Volume Coleção']});
+    }
+  });
+
+  const checks = {check1Pivot, check2, check3, check4, check5, check6, check7, check8, check9, check10, check11, check12, selosOrdenados};
+
+  lastReport = {pedidosDoDia, atrasados, unmatchedPainel, unmatchedAdocao, unmatchedOrc, noAlunoInfo, unmatchedUtilizacao, todayKey, ignoradosPorExcecao, checks,
+    _raw: {painelRows, bonRowsCorrected, orcRowsCorrected, adocaoRaw, calRaw, pedRaw}};
+  renderResults(lastReport);
+}
+
+function renderResults(rep){
+  document.getElementById('results').style.display = 'block';
+
+  const warnEl = document.getElementById('warnBlock');
+  warnEl.innerHTML = `
+    <p style="color:var(--green)"><strong>${rep.ignoradosPorExcecao}</strong> ocorrências ignoradas por exceções conhecidas cadastradas.</p>
+    <p><strong>${rep.unmatchedPainel.length}</strong> turmas do Painel de matrículas não encontradas na Lista de adoção (verificar nomes de marca/unidade/turma/turno):</p>
+    <div class="warn-list">${rep.unmatchedPainel.slice(0,200).map(r=>`<div>${r['Marca']} / ${r['Unidade']} / ${r['Série']} / ${r['Turno']}</div>`).join('') || '<div>Nenhuma.</div>'}</div>
+    <p style="margin-top:16px;"><strong>${rep.unmatchedOrc.length}</strong> combinações de Marca/Unidade do Orçamento sem escola correspondente:</p>
+    <div class="warn-list">${rep.unmatchedOrc.slice(0,200).map(r=>`<div>${r['Marca']} / ${r['Unidade']}</div>`).join('') || '<div>Nenhuma.</div>'}</div>
+    <p style="margin-top:16px;"><strong>${rep.noAlunoInfo.length}</strong> combinações escola+coleção do Calendário sem número de alunos calculado (turmas podem ter sido descontinuadas):</p>
+    <div class="warn-list">${rep.noAlunoInfo.slice(0,200).map(r=>`<div>${r['IdEscola']} / ${r['Coleção']}</div>`).join('') || '<div>Nenhuma.</div>'}</div>
+    <p style="margin-top:16px;"><strong>${rep.unmatchedAdocao.length}</strong> linhas da Lista de adoção sem turma correspondente no Painel nem nos Alunos contratantes:</p>
+    <div class="warn-list">${rep.unmatchedAdocao.slice(0,200).map(r=>`<div>${r['Marca']} / ${r['Unidade']} / ${r['Turma']} / ${r['Turno']} / ${r['Coleção']}</div>`).join('') || '<div>Nenhuma.</div>'}</div>
+    <p style="margin-top:16px;"><strong>${rep.unmatchedUtilizacao.length}</strong> linhas da Lista de adoção com Utilização vazia (assumido 100% no cálculo — revisar na fonte):</p>
+    <div class="warn-list">${rep.unmatchedUtilizacao.slice(0,200).map(r=>`<div>${r['Marca']} / ${r['Unidade']} / ${r['Turma']} / ${r['Turno']} / ${r['Coleção']}</div>`).join('') || '<div>Nenhuma.</div>'}</div>
+  `;
+}
+
+function exportXlsx(){
+  if(!lastReport) return;
+  const cols = r => ({
+    'ID Escola': r.IdEscola, 'Selo': r.Selo, 'Coleção': r.Colecao, 'Volume': r.Volume,
+    'Quantidade de alunos': r.Alunos, 'Qtd. pedida vol. anterior': r.QtdVolAnterior ?? '',
+    'Qtd. orçada': r.QtdOrcada ?? '', 'Data prevista pedido': r.SextaKey || ''
+  });
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(lastReport.pedidosDoDia.map(cols)), 'Pedidos do dia');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(lastReport.atrasados.map(cols)), 'Atrasados');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(lastReport.unmatchedPainel), 'Avisos - Painel');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(lastReport.unmatchedOrc), 'Avisos - Orcamento');
+  const today = new Date();
+  const fn = `pedidos_material_didatico_${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}.xlsx`;
+  XLSX.writeFile(wb, fn);
+}
+
+function exportAvisosXlsx(){
+  if(!lastReport) return;
+  const wb = XLSX.utils.book_new();
+
+  const painelSheet = lastReport.unmatchedPainel.map(r=>({
+    'Marca': r['Marca'], 'Unidade': r['Unidade'], 'Turma (Série)': r['Série'], 'Turno': r['Turno'],
+    'Real Adesão (#)': r['Real Adesão (#)']
+  }));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(painelSheet.length?painelSheet:[{'Aviso':'Nenhuma divergência'}]), 'Painel sem match');
+
+  const orcSheet = lastReport.unmatchedOrc.map(r=>({'Marca':r['Marca'], 'Unidade':r['Unidade']}));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(orcSheet.length?orcSheet:[{'Aviso':'Nenhuma divergência'}]), 'Orcamento sem escola');
+
+  const noAlunoSheet = lastReport.noAlunoInfo.map(r=>({'ID Escola':r['IdEscola'], 'Coleção':r['Coleção']}));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(noAlunoSheet.length?noAlunoSheet:[{'Aviso':'Nenhuma divergência'}]), 'Sem alunos vinculados');
+
+  const adocaoSheet = lastReport.unmatchedAdocao.map(r=>({
+    'Marca':r['Marca'], 'Unidade':r['Unidade'], 'Turma':r['Turma'], 'Turno':r['Turno'], 'Coleção':r['Coleção']
+  }));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(adocaoSheet.length?adocaoSheet:[{'Aviso':'Nenhuma divergência'}]), 'Adocao sem alunos');
+
+  const utilSheet = lastReport.unmatchedUtilizacao.map(r=>({
+    'Marca':r['Marca'], 'Unidade':r['Unidade'], 'Turma':r['Turma'], 'Turno':r['Turno'], 'Coleção':r['Coleção']
+  }));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(utilSheet.length?utilSheet:[{'Aviso':'Nenhuma divergência'}]), 'Utilizacao vazia');
+
+  const resumo = [{
+    'Ignorados por exceções conhecidas': lastReport.ignoradosPorExcecao,
+    'Turmas do Painel sem match': lastReport.unmatchedPainel.length,
+    'Orçamento sem escola': lastReport.unmatchedOrc.length,
+    'Sem alunos vinculados': lastReport.noAlunoInfo.length,
+    'Adoção sem alunos': lastReport.unmatchedAdocao.length,
+    'Utilização vazia': lastReport.unmatchedUtilizacao.length
+  }];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(resumo), 'Resumo');
+
+  const today = new Date();
+  const fn = `avisos_pedidos_material_didatico_${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}.xlsx`;
+  XLSX.writeFile(wb, fn);
+}
+
+/* ---------- Memória de cálculo (planilha com fórmulas) ---------- */
+function addFormulaColumns(ws, dataLength, startColIndex, colDefs){
+  colDefs.forEach((col, i)=>{
+    const c = startColIndex + i;
+    const headerAddr = XLSX.utils.encode_cell({r:0, c});
+    ws[headerAddr] = {t:'s', v: col.header};
+    for(let r=2; r<=dataLength+1; r++){
+      const addr = XLSX.utils.encode_cell({r:r-1, c});
+      ws[addr] = {t:'n', f: col.formula(r)};
+    }
+  });
+  const ref = ws['!ref'] ? XLSX.utils.decode_range(ws['!ref']) : {s:{r:0,c:0}, e:{r:dataLength, c:startColIndex}};
+  ref.e.c = Math.max(ref.e.c, startColIndex + colDefs.length - 1);
+  ref.e.r = Math.max(ref.e.r, dataLength);
+  ws['!ref'] = XLSX.utils.encode_range(ref);
+}
+
+function sheetFromRows(rows, columns){
+  // columns: array de {header, key} na ordem exata das colunas A,B,C...
+  const data = rows.map(r=>{
+    const o = {};
+    columns.forEach(col=> o[col.header] = r[col.key] ?? '');
+    return o;
+  });
+  return XLSX.utils.json_to_sheet(data, {header: columns.map(c=>c.header)});
+}
+
+function toDateObj(v){
+  if(v instanceof Date) return v;
+  if(v===null || v===undefined || v==='') return v;
+  if(typeof v === 'number'){
+    try{ const dc = XLSX.SSF.parse_date_code(v); if(dc) return new Date(Date.UTC(dc.y, dc.m-1, dc.d)); }catch(e){}
+    return v;
+  }
+  const s = String(v).trim();
+  if(/^\d{4}-\d{2}-\d{2}/.test(s)){
+    const d = new Date(s);
+    if(!isNaN(d)) return d;
+  }
+  const br = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+  if(br) return new Date(Date.UTC(+br[3], +br[2]-1, +br[1]));
+  return v;
+}
+
+function exportMemoriaCalculo(){
+  if(!lastReport || !lastReport._raw){
+    alert('Processe os pedidos primeiro (clique em "Processar pedidos") antes de baixar a memória de cálculo.');
+    return;
+  }
+  const {painelRows, bonRowsCorrected, orcRowsCorrected, adocaoRaw, calRaw, pedRaw} = lastReport._raw;
+  const wb = XLSX.utils.book_new();
+
+  // ---- Leia-me ----
+  const hoje = new Date();
+  const leiaMe = [
+    {Item:'Gerado em', Valor: hoje.toLocaleString('pt-BR')},
+    {Item:'', Valor:''},
+    {Item:'O que é este arquivo', Valor:'Registro (snapshot) das 6 bases usadas para calcular os pedidos desta rodada, com fórmulas mostrando o caminho de cálculo: Painel + Alunos fora do Painel -> Lista de adoção (x Utilização) -> Alunos por Escola+Coleção -> Calendário -> Status do pedido.'},
+    {Item:'', Valor:''},
+    {Item:'Atenção', Valor:'O Status calculado aqui usa a função HOJE() do Excel/planilha no momento em que o arquivo for aberto. Se abrir em outro dia, os status "Pedido do dia"/"Atrasado" podem mudar. Para o status exato do dia em que o pedido foi processado, use o "Baixar relatório (.xlsx)".'},
+    {Item:'', Valor:''},
+    {Item:'Correções de nomenclatura aplicadas', Valor: correcoes.length ? '' : 'Nenhuma cadastrada'},
+  ];
+  correcoes.forEach(c=>{
+    leiaMe.push({Item:'', Valor:`${c.marcaDe} / ${c.unidadeDe}${c.turmaDe?' / '+c.turmaDe:''}${c.turnoDe?' / '+c.turnoDe:''}  →  ${c.marcaPara} / ${c.unidadePara}${c.turmaPara?' / '+c.turmaPara:''}${c.turnoPara?' / '+c.turnoPara:''}`});
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(leiaMe), 'Leia-me');
+
+  // ---- Painel ----
+  const painelCols = [
+    {header:'Marca', key:'Marca'}, {header:'Unidade', key:'Unidade'},
+    {header:'Turma', key:'Série'}, {header:'Turno', key:'Turno'},
+    {header:'Real Adesão (#)', key:'Real Adesão (#)'}
+  ];
+  const wsPainel = sheetFromRows(painelRows, painelCols);
+  addFormulaColumns(wsPainel, painelRows.length, 5, [
+    {header:'Chave', formula:r=>`A${r}&"|"&B${r}&"|"&C${r}&"|"&D${r}`}
+  ]);
+  XLSX.utils.book_append_sheet(wb, wsPainel, 'Painel');
+
+  // ---- Alunos fora do Painel ----
+  const bonCols = [
+    {header:'Marca', key:'Marca'}, {header:'Unidade', key:'Unidade'},
+    {header:'Turma', key:'Turma'}, {header:'Turno', key:'Turno'},
+    {header:'Aparece na adesão do painel?', key:'Aparece na adesão do painel?'},
+    {header:'Qtd de alunos', key:'Qtd de alunos'}
+  ];
+  const wsBon = sheetFromRows(bonRowsCorrected, bonCols);
+  addFormulaColumns(wsBon, bonRowsCorrected.length, 6, [
+    {header:'Chave', formula:r=>`A${r}&"|"&B${r}&"|"&C${r}&"|"&D${r}`}
+  ]);
+  XLSX.utils.book_append_sheet(wb, wsBon, 'Alunos fora Painel');
+
+  // ---- Lista de adoção ----
+  const adocaoCols = [
+    {header:'Marca', key:'Marca'}, {header:'Unidade', key:'Unidade'},
+    {header:'Turma', key:'Turma'}, {header:'Turno', key:'Turno'},
+    {header:'Selo', key:'Selo'}, {header:'Coleção', key:'Coleção'},
+    {header:'Utilização', key:'Utilização'}, {header:'Id Escola', key:'Id Escola'}
+  ];
+  const wsAdocao = sheetFromRows(adocaoRaw, adocaoCols);
+  addFormulaColumns(wsAdocao, adocaoRaw.length, 8, [
+    {header:'Chave Turma', formula:r=>`A${r}&"|"&B${r}&"|"&C${r}&"|"&D${r}`},
+    {header:'Alunos Painel+Bônus', formula:r=>`SUMIF(Painel!F:F,I${r},Painel!E:E)+SUMIFS('Alunos fora Painel'!F:F,'Alunos fora Painel'!G:G,I${r},'Alunos fora Painel'!E:E,"Não")`},
+    {header:'Alunos Calculados', formula:r=>`ROUND(J${r}*G${r},0)`},
+    {header:'Chave Escola+Coleção', formula:r=>`H${r}&"|"&F${r}`},
+    {header:'Chave Marca+Unidade', formula:r=>`A${r}&"|"&B${r}`}
+  ]);
+  XLSX.utils.book_append_sheet(wb, wsAdocao, 'Lista adocao');
+
+  // ---- Alunos por Escola+Coleção (dimensão única) ----
+  const escColSet = new Map();
+  adocaoRaw.forEach(r=>{
+    const k = r['Id Escola']+'|||'+r['Coleção'];
+    if(!escColSet.has(k)) escColSet.set(k, {IdEscola:r['Id Escola'], Coleção:r['Coleção']});
+  });
+  const escColRows = [...escColSet.values()];
+  const wsEscCol = sheetFromRows(escColRows, [{header:'Id Escola', key:'IdEscola'}, {header:'Coleção', key:'Coleção'}]);
+  addFormulaColumns(wsEscCol, escColRows.length, 2, [
+    {header:'Chave', formula:r=>`A${r}&"|"&B${r}`},
+    {header:'Alunos', formula:r=>`SUMIF('Lista adocao'!L:L,C${r},'Lista adocao'!K:K)`}
+  ]);
+  XLSX.utils.book_append_sheet(wb, wsEscCol, 'Alunos por Escola');
+
+  // ---- Pedidos feitos ----
+  const pedCols = [
+    {header:'ID Escola', key:'ID Escola'}, {header:'Coleção', key:'COLEÇÃO'},
+    {header:'Volume', key:'VOLUME'}, {header:'Quantidade', key:'QUANTIDADE'},
+    {header:'Considera para quantidade enviada?', key:'Considera para quantidade enviada?'}
+  ];
+  const wsPed = sheetFromRows(pedRaw, pedCols);
+  addFormulaColumns(wsPed, pedRaw.length, 5, [
+    {header:'Chave Escola+Coleção+Volume', formula:r=>`A${r}&"|"&B${r}&"|"&C${r}`}
+  ]);
+  XLSX.utils.book_append_sheet(wb, wsPed, 'Pedidos feitos');
+
+  // ---- Orçamento ----
+  const orcCols = [
+    {header:'Marca', key:'Marca'}, {header:'Unidade', key:'Unidade'},
+    {header:'Turma', key:'Turma'}, {header:'Turno', key:'Turno'},
+    {header:'Coleção', key:'Coleção'}, {header:'Volume', key:'Volume Coleção'},
+    {header:'Qtd Orçada', key:'Qtd Orç'}
+  ];
+  const wsOrc = sheetFromRows(orcRowsCorrected, orcCols);
+  addFormulaColumns(wsOrc, orcRowsCorrected.length, 7, [
+    {header:'Chave Marca+Unidade', formula:r=>`A${r}&"|"&B${r}`},
+    {header:'Id Escola', formula:r=>`IFERROR(INDEX('Lista adocao'!H:H,MATCH(H${r},'Lista adocao'!M:M,0)),"")`},
+    {header:'Chave Escola+Coleção+Volume', formula:r=>`I${r}&"|"&E${r}&"|"&F${r}`}
+  ]);
+  XLSX.utils.book_append_sheet(wb, wsOrc, 'Orcamento');
+
+  // ---- Calendário (trilha final até o Status do pedido) ----
+  const calCols = [
+    {header:'ID Escola', key:'ID Escola'}, {header:'Coleção', key:'Coleção'},
+    {header:'Volume', key:'Volume Coleção'}, {header:'Data do pedido', key:'Data do pedido'}
+  ];
+  const calRawComData = calRaw.map(r => ({...r, 'Data do pedido': toDateObj(r['Data do pedido'])}));
+  const wsCal = sheetFromRows(calRawComData, calCols);
+  addFormulaColumns(wsCal, calRawComData.length, 4, [
+    {header:'Chave Escola+Coleção', formula:r=>`A${r}&"|"&B${r}`},
+    {header:'Alunos', formula:r=>`IFERROR(VLOOKUP(E${r},'Alunos por Escola'!C:D,2,0),"")`},
+    {header:'Chave Escola+Coleção+Volume', formula:r=>`E${r}&"|"&C${r}`},
+    {header:'Chave Vol Anterior', formula:r=>`E${r}&"|"&(C${r}-1)`},
+    {header:'Qtd Pedida', formula:r=>`SUMIFS('Pedidos feitos'!D:D,'Pedidos feitos'!F:F,G${r},'Pedidos feitos'!E:E,"Sim")`},
+    {header:'Qtd Vol Anterior', formula:r=>`SUMIFS('Pedidos feitos'!D:D,'Pedidos feitos'!F:F,H${r},'Pedidos feitos'!E:E,"Sim")`},
+    {header:'Qtd Orçada', formula:r=>`SUMIF(Orcamento!J:J,G${r},Orcamento!G:G)`},
+    {header:'Status', formula:r=>`IF(I${r}>0,"Feito",IF(D${r}=TODAY(),"Pedido do dia",IF(D${r}<TODAY(),"Atrasado","Futuro")))`}
+  ]);
+  XLSX.utils.book_append_sheet(wb, wsCal, 'Calendario');
+
+  const fn = `memoria_calculo_${hoje.getFullYear()}-${pad(hoje.getMonth()+1)}-${pad(hoje.getDate())}.xlsx`;
+  XLSX.writeFile(wb, fn);
+}
+
+document.getElementById('exportMemoriaBtn').addEventListener('click', exportMemoriaCalculo);
+
+document.getElementById('processBtn').addEventListener('click', process);
+document.getElementById('exportBtn').addEventListener('click', exportXlsx);
+document.getElementById('exportAvisosBtn').addEventListener('click', exportAvisosXlsx);
+
+/* ---------- Diagnóstico de armazenamento + export/import de configurações ---------- */
+async function checkStorageAvailable(){
+  const probe = 'md_probe_'+Date.now();
+  const res = await storageSet(probe, '1', false);
+  if(res) await storageDelete(probe, false);
+  return !!res; // true se Claude storage OU localStorage funcionaram
+}
+
+function exportConfig(){
+  const payload = {
+    versao: 1,
+    exportadoEm: new Date().toISOString(),
+    correcoes, excecoes, excecaoZeroAlunos
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const d = new Date();
+  a.href = url;
+  a.download = `config_pedidos_material_didatico_${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+async function importConfig(file){
+  try{
+    const text = await file.text();
+    const payload = JSON.parse(text);
+    if(Array.isArray(payload.correcoes)) correcoes = payload.correcoes;
+    if(Array.isArray(payload.excecoes)) excecoes = payload.excecoes;
+    if(typeof payload.excecaoZeroAlunos === 'boolean') excecaoZeroAlunos = payload.excecaoZeroAlunos;
+    renderFixTable();
+    renderExcTable();
+    document.getElementById('excZeroAlunos').checked = excecaoZeroAlunos;
+    await saveCorrecoes();
+    await saveExcecoes();
+    await saveExcecaoZeroAlunos();
+    alert(`Configurações importadas: ${correcoes.length} correções, ${excecoes.length} exceções.`);
+  }catch(e){
+    alert('Não foi possível importar o arquivo: ' + e.message);
+  }
+}
+
+document.getElementById('exportConfigBtn').addEventListener('click', exportConfig);
+document.getElementById('importConfigInput').addEventListener('change', e=>{
+  const f = e.target.files[0];
+  if(f) importConfig(f);
+  e.target.value = '';
+});
+document.getElementById('clearConfigBtn').addEventListener('click', async ()=>{
+  const ok = confirm('Isso vai apagar TODAS as correções de nomenclatura e exceções conhecidas cadastradas — para a equipe toda, não só neste navegador. Essa ação não pode ser desfeita. Continuar?');
+  if(!ok) return;
+  correcoes = [];
+  excecoes = [];
+  excecaoZeroAlunos = true;
+  renderFixTable();
+  renderExcTable();
+  document.getElementById('excZeroAlunos').checked = excecaoZeroAlunos;
+  await saveCorrecoes();
+  await saveExcecoes();
+  await saveExcecaoZeroAlunos();
+  alert('Correções e exceções foram apagadas para toda a equipe.');
+});
+
+renderUploadGrid();
+loadCaches();
+checkStorageAvailable().then(ok=>{
+  const banner = document.getElementById('storageBanner');
+  if(!ok){
+    banner.innerHTML = '⚠️ Não foi possível salvar dados neste navegador (nem via Claude, nem localmente — talvez modo privado/anônimo). As bases enviadas (Lista de adoção/Orçamento/etc.) não ficarão em cache neste navegador. Correções e exceções continuam salvas normalmente (ficam no banco compartilhado, não neste navegador).';
+    banner.style.display = 'block';
+  }
+});
+})();
+</script>
+</body>
+</html>
