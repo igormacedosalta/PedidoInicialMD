@@ -516,6 +516,13 @@ window.addEventListener('load', () => {
   document.getElementById('loginSenha').addEventListener('keydown', e => { if (e.key === 'Enter') (modoCriarConta ? criarConta() : tentarLogin()); });
   document.getElementById('loginEmail').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('loginSenha').focus(); });
 });
+// Expostas no escopo global porque são chamadas via onclick inline no HTML
+// (o restante do código roda dentro de uma IIFE, escopo privado)
+window.tentarLogin = tentarLogin;
+window.criarConta = criarConta;
+window.alternarModoLogin = alternarModoLogin;
+window.esqueciSenha = esqueciSenha;
+window.logout = logout;
 /* ======================= FIM LOGIN ======================= */
 
 /* ======================= DADOS COMPARTILHADOS (correções/exceções via Firestore) ======================= */
