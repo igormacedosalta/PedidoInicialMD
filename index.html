@@ -428,7 +428,7 @@ async function storageDelete(key, shared){
 }
 
 /* ======================= LOGIN (Firebase) ======================= */
-// Para autorizar alguém da equipe, adicione um documento na coleção "equipe_pedidos"
+// Para autorizar alguém da equipe, adicione um documento na coleção "pedidoinicial_equipe_pedidos"
 // do Firestore com o e-mail da pessoa como ID do documento (veja instruções no chat).
 let currentUser = null;
 let modoCriarConta = false;
@@ -445,7 +445,7 @@ function alternarModoLogin() {
 }
 
 async function buscarAutorizacao(email) {
-  const doc = await db.collection('equipe_pedidos').doc(norm(email)).get();
+  const doc = await db.collection('pedidoinicial_equipe_pedidos').doc(norm(email)).get();
   return doc.exists ? doc.data() : null;
 }
 
@@ -520,7 +520,7 @@ async function processarLoginAutenticado(email) {
     return;
   }
   if (!autorizacao) {
-    document.getElementById('loginError').innerText = 'Seu e-mail não está autorizado. Peça para o administrador te adicionar na coleção equipe_pedidos.';
+    document.getElementById('loginError').innerText = 'Seu e-mail não está autorizado. Peça para o administrador te adicionar na coleção pedidoinicial_equipe_pedidos.';
     await auth.signOut();
     return;
   }
@@ -578,7 +578,7 @@ let unsubscribeCompartilhado = null;
 
 function ligarListenerCompartilhado() {
   if (unsubscribeCompartilhado) unsubscribeCompartilhado();
-  unsubscribeCompartilhado = db.collection('pedidos_compartilhado').doc('dados').onSnapshot(doc => {
+  unsubscribeCompartilhado = db.collection('pedidoinicial_pedidos_compartilhado').doc('dados').onSnapshot(doc => {
     const d = doc.exists ? doc.data() : {};
     correcoes = d.correcoes || [];
     excecoes = d.excecoes || [];
@@ -591,7 +591,7 @@ function ligarListenerCompartilhado() {
 
 async function salvarDadosCompartilhados() {
   try {
-    await db.collection('pedidos_compartilhado').doc('dados').set({ correcoes, excecoes, excecaoZeroAlunos, atualizadoEm: new Date().toISOString(), autor: currentUser ? currentUser.email : '' });
+    await db.collection('pedidoinicial_pedidos_compartilhado').doc('dados').set({ correcoes, excecoes, excecaoZeroAlunos, atualizadoEm: new Date().toISOString(), autor: currentUser ? currentUser.email : '' });
   } catch (e) {
     console.error('Erro ao salvar dados compartilhados', e);
     alert('Erro ao salvar: ' + e.message);
